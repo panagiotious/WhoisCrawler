@@ -75,6 +75,29 @@
 
 <p>The same process will take place after all threads have finished crawling all IP ranges denoted in the beginning, but this time taking all smaller fragments (created every ten minutes) and outputting a large radix tree with all whois data named <strong>CIDRS.p</strong>.</p>
 
+<h3>
+<a name="logging" class="anchor" href="#logging"><span class="octicon octicon-link"></span></a>Logging</h3>
+
+<p>The crawler itself stores a lot of information, including errors, notifications and warning in a log file, in the working directory under <code>logfile.log</code>. This file contains information having to do with the uptime, main process and subprocesses IDs in case they need to be manually killed and everything that has to do with the application's behaviour. Its format follows the template:</p>
+
+<pre><code>2014-01-02 16:20:36 GMT [28788]&lt;Notice&gt;: Worker(7)::createPickles(): Creating Queue pickle file queue_7.
+2014-01-02 16:20:36 GMT [28866]&lt;Notice&gt;: Worker(8)::createPickles(): Creating CIDRS pickle file cidrs_8.
+2014-01-02 16:20:36 GMT [28866]&lt;Notice&gt;: Worker(8)::createPickles(): Creating Queue pickle file queue_8.
+2014-01-02 16:20:36 GMT [14346]&lt;Benchmark&gt;: Total queries: 2870112
+2014-01-02 16:20:36 GMT [14346]&lt;Benchmark&gt;: Queries in the past hour: 44619
+2014-01-02 16:20:36 GMT [14346]&lt;Benchmark&gt;: Total CIDRs found: 225019
+2014-01-02 16:20:36 GMT [14346]&lt;Notice&gt;: MasterCrawler::pickleManager(30): Pickling process started.
+2014-01-02 16:20:36 GMT [14346]&lt;Warning&gt;: MasterCrawler::crawlersManager(30): Subrocces 0 restarted.
+2014-01-02 16:20:36 GMT [30014]&lt;Notice&gt;: Worker(0)::start(): Started crawling from 11.199.83.0 to 15.0.0.0 for 10.0 minutes.
+2014-01-02 16:20:37 GMT [14346]&lt;Warning&gt;: MasterCrawler::crawlersManager(30): Subrocces 1 restarted.
+2014-01-02 16:20:37 GMT [14346]&lt;Notice&gt;: MasterCrawler::pickleManager(30): Individual pickles collected. Files removed.
+2014-01-02 16:20:37 GMT [30028]&lt;Notice&gt;: Worker(1)::start(): Started crawling from 26.177.100.0 to 30.0.0.0 for 10.0 minutes.
+2014-01-02 16:20:37 GMT [14346]&lt;Warning&gt;: MasterCrawler::crawlersManager(30): Subrocces 2 restarted.
+2014-01-02 16:20:37 GMT [30047]&lt;Notice&gt;: Worker(2)::start(): Started crawling from 42.138.184.0 to 45.0.0.0 for 10.0 minutes.
+2014-01-02 16:20:37 GMT [14346]&lt;Notice&gt;: MasterCrawler::pickleManager(30): Pickling process complete. Files tree_state_30 and queue_state_30 created successfully.
+2014-01-02 16:20:37 GMT [14346]&lt;Notice&gt;: MasterCrawler::pickleManager(30): Pickle manager out!
+</code></pre>
+
 <h2>
 <a name="after-crawling" class="anchor" href="#after-crawling"><span class="octicon octicon-link"></span></a>After Crawling</h2>
 
