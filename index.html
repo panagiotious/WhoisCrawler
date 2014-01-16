@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Whoiscrawler by panagiotious</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Whoiscrawler</h1>
+        <p>Whois data harvesting system</p>
+        <p class="view"><a href="https://github.com/panagiotious/WhoisCrawler">View the Project on GitHub <small>panagiotious/WhoisCrawler</small></a></p>
+        <ul>
+          <li><a href="https://github.com/panagiotious/WhoisCrawler/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/panagiotious/WhoisCrawler/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/panagiotious/WhoisCrawler">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a name="whois-crawler" class="anchor" href="#whois-crawler"><span class="octicon octicon-link"></span></a>Whois Crawler</h1>
+
+<p>The WhoisCrawler is an open-source project, dedicated in building a unix application that will be able to harvest data from whois servers and output a database, in a form able to be queried a lot faster than the server itself. The python scripts output a <a href="https://code.google.com/p/py-radix/">Radix</a> type pickle, that can then be loaded by our other open-source project <a href="https://github.com/panagiotious/CIDR-db-Search">CIDR-db Search</a>. The user needs to obtain a pickle file of the supported format and then import the search module in order to query the database by IP.</p>
+
+<h2>
+<a name="data-collection" class="anchor" href="#data-collection"><span class="octicon octicon-link"></span></a>Data Collection</h2>
+
+<p>The current version queries the Cymru whois server (<a href="http://www.team-cymru.org">cymru-services</a>), which has been proven the most stable free service available. The crawler harvests data regarding the CIDRs allocated by the RIRs. Specifically, it stores the first IP of the network an IP belongs to, the corresponding network (CIDR), the ISP to whom it is registered to, the country code, the RIR and the AS number.</p>
+
+<h2>
+<a name="operation" class="anchor" href="#operation"><span class="octicon octicon-link"></span></a>Operation</h2>
+
+<p>The current version is using a distributed approach, creating ten subprocesses of the crawling instances that start querying the server. Every ten minutes the subprocesses die after creating an individual pickle of the data stored. The main process then fires a thread that will merge these pickles into a larger one for each subprocess and restarts the subprocesses to keep querying - if they haven't already finished.</p>
+
+<h3>
+<a name="why-10-minutes-" class="anchor" href="#why-10-minutes-"><span class="octicon octicon-link"></span></a>Why 10 Minutes ?</h3>
+
+<p>After having spent a lot of time testing many techniques (threading queries, splitting IP ranges, etc), any approach had a steady reduction rate in queries completed per second. We are still trying to explain that, but it might have been the way Unix treats the python threads. When invoking many processes to get the job done, the Unix core has to manage the dig queries performed, which obviously makes it a lot more efficient. If a process starts querying with a rate of 100,000 queries per hour, in a few hours it would drop to about 20,000. When restarting that same process with a couple of seconds timeout though, it keeps a more steady rate of queries.</p>
+
+<h3>
+<a name="invoke-procedure" class="anchor" href="#invoke-procedure"><span class="octicon octicon-link"></span></a>Invoke Procedure</h3>
+
+<p>The python scripts crawling the IPs are started with four command line arguments. The python main process invokes them using the suprocess module, appending the appropriate arguments like:</p>
+
+<pre><code>python crawl.py subprocess_id starting_ip last_ip time_limit
+</code></pre>
+
+<p>The master process is initialised with an array containing the IP ranges the crawlers should crawl. Every time a subprocess stops due to the small time frame, it will return the IP at which it stopped. The main process will then invoke a new subprocess to continue from that IP to the last IP in the ranges, or the time limit.</p>
+
+<h3>
+<a name="subprocesses--main-process" class="anchor" href="#subprocesses--main-process"><span class="octicon octicon-link"></span></a>Subprocesses &amp; Main Process</h3>
+
+<p>The subprocesses communicate with the main process through a python socket at port 6667. When the main process receives 10 connections (as many as the subprocesses) it will then start the merging thread that will gather all individual CIDR pickles to output one containing the data stored in the past ten minutes like:</p>
+
+<div class="highlight highlight-python"><pre><span class="k">for</span> <span class="n">indTree</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s">'cidrs_?'</span><span class="p">):</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">indTree</span><span class="p">,</span> <span class="s">'rb'</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">temp</span><span class="p">:</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'asn'</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'asn'</span><span class="p">]</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'cc'</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'cc'</span><span class="p">]</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'reg'</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'reg'</span><span class="p">]</span>
+        <span class="n">node</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'isp'</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">'isp'</span><span class="p">]</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">indTree</span><span class="p">)</span>
+</pre></div>
+
+<p>The same process will take place after all threads have finished crawling all IP ranges denoted in the beginning, but this time taking all smaller fragments (created every ten minutes) and outputting a large radix tree with all whois data named <strong>CIDRS.p</strong>.</p>
+
+<h2>
+<a name="after-crawling" class="anchor" href="#after-crawling"><span class="octicon octicon-link"></span></a>After Crawling</h2>
+
+<p>After all subprocesses have completed querying their range and the main process has created the big tree, it will restart the whole process, to keep an endless loop of queries (sorry Cymru), in order to update the database with any changes. When the new process is complete, it will compare the new pickled output, with the former one. If there are any changes, the old pickle is being archived and the new one is the most up to date. If no changes have occurred, then the new pickle is being discarded.</p>
+
+<h2>
+<a name="queue" class="anchor" href="#queue"><span class="octicon octicon-link"></span></a>Queue</h2>
+
+<p>Unfortunately, not all IPs belong to a specific CIDR. These are about two billion IPs, which would make crawling through them very time consuming. To avoid wasting too much time on these IPs, if the server does not respond with a valid CIDR for the IP being queried, the system will skip the <code>/24</code> block. For example, if the process queries for <code>1.1.0.0</code> the response Cymru ANS Service will return is:</p>
+
+<pre><code>AS      | IP               | BGP Prefix          | CC | Registry | Allocated  | AS Name
+NA      | 1.1.0.0          | NA                  | CN | apnic    | 2011-04-14 | NA
+</code></pre>
+
+<p>In this case, the system will query for the next IP of <code>1.1.0.0/24 = 1.1.1.0</code>. This might result in falsifying results in the database, since there is a possibility that IP <code>1.1.0.200</code> would return a valid response. But since it would take too much time to query all 255 IPs in each <code>/24</code> range, a decision was made to skip. We suppose that there isn't anyone who would like to dedicate resources in such an excessive procedure. But…since there are people who would like to have a complete database, the system will not discard the IP, but store it in a <strong>queue</strong>. This queue follows the same pickling rules as the CIDRs and will be available for the user to crawl. Another project is coming soon enough which will support the crawling, taking this specific queue as input and dedicating 10 more distributed threads to crawl it and output a new CIDRs file.</p>
+
+<h2>
+<a name="benchmarking" class="anchor" href="#benchmarking"><span class="octicon octicon-link"></span></a>Benchmarking</h2>
+
+<p>Coming soon…</p>
+
+<h2>
+<a name="whats-next" class="anchor" href="#whats-next"><span class="octicon octicon-link"></span></a>What's Next</h2>
+
+<p>There are numerous ideas to extend the application and it has been designed in a way to make extensibility actually able!</p>
+
+<ul>
+<li>An interface can be implemented to make the crawling processes invoked to more physical hosts than one.</li>
+<li>The crawling can be benchmarked to more hosts and verify the results.</li>
+<li>An efficient cross-realm validation of the data can be implemented, by increasing the time spent to crawl. More servers can be added in order for the crawler to gather more accurate results.</li>
+<li>More data can be stored in the radix tree, depending on the individual's needs.</li>
+<li>The radix tree can be reworked to allow multiple key indexing, in order to make searching more flexible.</li>
+<li>An efficient mechanism to verify that the queried server is alive can be implemented. It should be developed in a way that the subprocesses can be notified so that they can pause execution (maybe sockets, or even discard the past 10 minutes results - even the main process could just discard the results and restart the processes from their former starting IP).</li>
+</ul><hr><p>This project is built and maintained by George Louloudakis (<a href="mailto:georgelouloudakis@gmail.com">georgelouloudakis@gmail.com</a>) and Panagiotis Kintis (<a href="mailto:panagiotious@gmail.com">panagiotious@gmail.com</a>). Feel free to contact us for any suggestions, bugs or ideas!
+<a href="http://panagiotious.github.io/WhoisCrawler">http://panagiotious.github.io/WhoisCrawler</a></p>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/panagiotious">panagiotious</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
